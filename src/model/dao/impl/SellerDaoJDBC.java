@@ -4,7 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import db.DB;
 import db.DbException;
@@ -85,6 +88,56 @@ public class SellerDaoJDBC implements SellerDao {
 	@Override
 	public List<Seller> findAll() {
 		return null;
+	}
+
+	@Override
+	public List<Seller> findByDepartment(Department department) {
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		try {
+			st = conn.prepareStatement(
+					//nao pode esquecer do espaco do final em branco 
+					"SELECT seller.*,department.Name as DepName "
+					+ "FROM seller INNER JOIN department "
+					+ "ON seller.DepartmentId = department.Id "
+					+ "WHERE DepartmentId = ? "
+					+ "ORDER BY Name");
+			
+			st.setInt(1, department.getId());
+			rs = st.executeQuery();
+			
+			//como sao varios valores criar uma lista pra percorrer resultados
+			List<Seller> list = new ArrayList<>();
+			//para o departamento nao repetir, nao criar um novo departament
+			Map<Integer, Department> map = new HashMap<>();
+			
+			//percorrer enquanto tiver um proxuimo
+			while (rs.next()) {
+				
+				//testar se o departamento ja existe
+				Department dep = map.get(rs.getInt("DepartmentId"));
+				
+				if (dep == null) {
+					//criar departamento
+					dep = instantiateDepartment(rs);
+					//guardar no map
+					map.put(rs.getInt("DepartmentId"), dep);
+				}
+				
+				Seller obj = instantiateSeller(rs, dep);
+				//adc vendedor na lista
+				list.add(obj);
+			}
+			return list;
+			
+		}
+		catch (SQLException e) {
+			throw new DbException(e.getMessage());
+		}
+		finally {
+			DB.closeStatement(st);
+			DB.closeResultSet(rs);
+		}
 	}
 
 }
